@@ -110,7 +110,7 @@ function isRestrictedUrl(url) {
     return restrictedUrlPatterns.some(pattern => pattern.test(url));
 }
 
-// Helper function to ping content script and check if it's ready
+// Helper function to ping a content script and check if it's ready
 async function pingContentScript(tabId, timeout = 3000) {
     return new Promise((resolve) => {
         const timeoutId = setTimeout(() => {
@@ -146,7 +146,7 @@ async function pingContentScript(tabId, timeout = 3000) {
     });
 }
 
-// Helper function to inject content script if needed
+// Helper function to inject a content script if needed
 async function ensureContentScript(tabId, url) {
     if (isRestrictedUrl(url)) {
         console.log(`Cannot inject content script on restricted URL: ${url}`);
@@ -154,20 +154,20 @@ async function ensureContentScript(tabId, url) {
     }
 
     try {
-        // Try to ping existing content script first
+        // Try to ping an existing content script first
         const isReady = await pingContentScript(tabId);
         if (isReady) {
             return true;
         }
 
-        // Content script not ready, try to inject it
+        // Content script is not ready, try to inject it
         console.log(`Injecting content script into tab ${tabId}`);
         await chrome.scripting.executeScript({
             target: {tabId: tabId},
             files: ['content.js']
         });
 
-        // Wait a bit for content script to initialize
+        // Wait a bit for a content script to initialize
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Ping again to verify injection worked
@@ -638,7 +638,7 @@ async function streamResponse(session, prompt, sessionId) {
         const stream = session.promptStreaming(prompt);
 
         for await (const chunk of stream) {
-            // Check if session was cancelled
+            // Check if session was canceled
             if (sessionId && !activeSessions.has(sessionId)) {
                 console.log('Session cancelled, stopping stream');
                 streamingActive = false;

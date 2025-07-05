@@ -1,6 +1,7 @@
-# Aura Prompt - AI Chrome Extension
+# Aura Prompt—AI Chrome Extension
 
-A modern Chrome extension built with Vue.js and shadcn/ui that integrates with Chrome's built-in Prompt API to provide AI-powered assistance for webpage analysis and general questions.
+A modern Chrome extension built with Vue.js and shadcn/ui that integrates with Chrome's built-in Prompt API
+to provide AI-powered assistance for webpage analysis and general questions.
 
 ## Features
 
@@ -25,9 +26,8 @@ A modern Chrome extension built with Vue.js and shadcn/ui that integrates with C
 
 The extension uses Chrome's built-in Prompt API. To ensure it works:
 
-1. Make sure you're using Chrome 127 or later
+1. Make sure you're using Chrome 138 or later
 2. The Prompt API should be available by default in recent Chrome versions
-3. If you encounter issues, check Chrome's AI settings in `chrome://settings/ai`
 
 ## Installation
 
@@ -56,7 +56,7 @@ The extension uses Chrome's built-in Prompt API. To ensure it works:
 
 ### For Production
 
-1. Download the latest release from the releases page
+1. Download the latest release from the releases' page
 2. Extract the ZIP file
 3. Load the extracted folder in Chrome as described above
 
@@ -73,7 +73,7 @@ The extension uses Chrome's built-in Prompt API. To ensure it works:
 The extension automatically generates contextual suggestions based on the type of content on the page:
 
 - **Articles/News**: "What's the main story?", "Who are the key people involved?"
-- **Tutorials**: "Break down the steps", "What skills do I need?"
+- **Tutorials**: "Break down the steps," "What skills do I need?"
 - **Research Papers**: "What were the findings?", "What's the methodology?"
 - **Product Pages**: "What are the pros and cons?", "Is this worth buying?"
 - **Recipes**: "What are the ingredients?", "How long does it take?"
@@ -142,7 +142,7 @@ Built files will be output to the `dist/` directory.
 - **Chrome Prompt API**: Native Chrome AI capabilities with full lifecycle management
 - **Availability Checking**: Automatic detection of AI model status (available, downloadable, downloading, unavailable)
 - **Model Download**: Automatic download with progress monitoring when needed
-- **Parameter Validation**: Validates temperature (0.0-2.0) and topK (1-8) parameters against API constraints
+- **Parameter Validation**: Validates temperature (0.0–2.0) and topK (1–8) parameters against API constraints
 - **Streaming Responses**: Real-time response chunks using `promptStreaming()` API
 - **Session Management**: Proper session creation, management, and cleanup
 - **Context-Aware**: Includes page content as context for better responses
@@ -200,7 +200,7 @@ For development, you can enable debug logging:
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License—see LICENSE file for details
 
 ## Support
 
