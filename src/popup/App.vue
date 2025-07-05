@@ -4,7 +4,7 @@
     <div class="border-b border-border p-4">
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-          <Sparkles class="w-4 h-4 text-primary-foreground" />
+          <Sparkles class="w-4 h-4 text-primary-foreground"/>
         </div>
         <div>
           <h1 class="text-lg font-semibold">Aura Prompt</h1>
@@ -18,7 +18,7 @@
       <!-- API Status -->
       <div v-if="!apiStatus.available" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
         <div class="flex items-start gap-2">
-          <AlertTriangle class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+          <AlertTriangle class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0"/>
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-yellow-800">AI Not Available</p>
             <p class="text-xs text-yellow-700">{{ apiStatus.message }}</p>
@@ -29,13 +29,13 @@
       <!-- Download Progress -->
       <div v-if="isDownloading" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <div class="flex items-center gap-2">
-          <Download class="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <Download class="w-4 h-4 text-blue-600 flex-shrink-0"/>
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-blue-800">Downloading AI Model</p>
             <div class="w-full bg-blue-200 rounded-full h-2 mt-1">
               <div
-                class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                :style="{ width: `${downloadProgress}%` }"
+                  class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  :style="{ width: `${downloadProgress}%` }"
               ></div>
             </div>
             <p class="text-xs text-blue-700 mt-1">{{ downloadProgress }}% complete</p>
@@ -46,7 +46,7 @@
       <!-- Page Info -->
       <div v-if="pageInfo.title" class="bg-muted/50 rounded-lg p-3">
         <div class="flex items-start gap-2">
-          <Globe class="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <Globe class="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0"/>
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium truncate">{{ pageInfo.title }}</p>
             <p class="text-xs text-muted-foreground truncate">{{ pageInfo.url }}</p>
@@ -57,7 +57,7 @@
       <!-- Smart Suggestions -->
       <div v-if="suggestions.length > 0 || isLoadingSuggestions">
         <h3 class="text-sm font-medium mb-2 flex items-center gap-2">
-          <Lightbulb class="w-4 h-4" />
+          <Lightbulb class="w-4 h-4"/>
           Smart Suggestions
           <span v-if="aiGeneratedSuggestions" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
             AI
@@ -66,19 +66,19 @@
 
         <!-- Loading state for suggestions -->
         <div v-if="isLoadingSuggestions" class="flex items-center gap-2 text-sm text-muted-foreground py-2">
-          <Loader2 class="w-4 h-4 animate-spin" />
+          <Loader2 class="w-4 h-4 animate-spin"/>
           Generating smart suggestions...
         </div>
 
         <!-- Generated suggestions -->
         <div v-else class="grid grid-cols-1 gap-2">
           <Button
-            v-for="suggestion in suggestions"
-            :key="suggestion"
-            variant="outline"
-            size="sm"
-            class="justify-start text-left h-auto py-2 px-3"
-            @click="selectSuggestion(suggestion)"
+              v-for="suggestion in suggestions"
+              :key="suggestion"
+              variant="outline"
+              size="sm"
+              class="justify-start text-left h-auto py-2 px-3"
+              @click="selectSuggestion(suggestion)"
           >
             {{ suggestion }}
           </Button>
@@ -87,23 +87,28 @@
 
       <!-- Chat Interface -->
       <div class="space-y-3">
-        <h3 class="text-sm font-medium flex items-center gap-2">
-          <MessageSquare class="w-4 h-4" />
-          Ask Anything
+        <h3 class="text-sm font-medium flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <MessageSquare class="w-4 h-4"/>
+            Ask Anything
+          </div>
+          <span v-if="isLoading && tokensPerSecond > 0" class="text-xs text-muted-foreground font-normal">
+            {{ tokensPerSecond.toFixed(1) }} tokens/s
+          </span>
         </h3>
 
 
         <!-- Chat Messages -->
         <div ref="chatContainer" v-if="messages.length > 0" class="space-y-3 max-h-60 overflow-y-auto">
           <div
-            v-for="message in messages"
-            :key="message.id"
-            class="flex gap-3"
-            :class="message.type === 'user' ? 'justify-end' : 'justify-start'"
+              v-for="message in messages"
+              :key="message.id"
+              class="flex gap-3"
+              :class="message.type === 'user' ? 'justify-end' : 'justify-start'"
           >
             <div
-              class="max-w-[95%] rounded-lg px-3 py-2 text-sm"
-              :class="message.type === 'user'
+                class="max-w-[95%] rounded-lg px-3 py-2 text-sm"
+                :class="message.type === 'user'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground'"
             >
@@ -114,13 +119,13 @@
 
               <!-- AI messages (parsed markdown) -->
               <div
-                v-else
-                class="markdown-content"
-                v-html="parseMarkdown(message.content)"
+                  v-else
+                  class="markdown-content"
+                  v-html="parseMarkdown(message.content)"
               ></div>
 
               <div v-if="message.streaming" class="flex items-center gap-1 mt-2">
-                <Loader2 class="w-3 h-3 animate-spin" />
+                <Loader2 class="w-3 h-3 animate-spin"/>
                 <span class="text-xs opacity-70">AI is typing...</span>
               </div>
             </div>
@@ -131,24 +136,24 @@
         <div class="space-y-2">
           <div class="flex gap-2">
             <Input
-              v-model="currentPrompt"
-              :placeholder="apiStatus.available ? 'Ask about this page or anything else...' : 'AI not available'"
-              class="flex-1"
-              @keyup.enter="sendPrompt"
-              :disabled="isLoading || !apiStatus.available || isDownloading"
+                v-model="currentPrompt"
+                :placeholder="apiStatus.available ? 'Ask about this page or anything else...' : 'AI not available'"
+                class="flex-1"
+                @keyup.enter="sendPrompt"
+                :disabled="isLoading || !apiStatus.available || isDownloading"
             />
             <Button
-              @click="sendPrompt"
-              :disabled="!currentPrompt.trim() || isLoading || !apiStatus.available || isDownloading"
-              size="sm"
+                @click="sendPrompt"
+                :disabled="!currentPrompt.trim() || isLoading || !apiStatus.available || isDownloading"
+                size="sm"
             >
-              <Send class="w-4 h-4" />
+              <Send class="w-4 h-4"/>
             </Button>
           </div>
 
           <!-- Loading indicator -->
           <div v-if="isLoading" class="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 class="w-4 h-4 animate-spin" />
+            <Loader2 class="w-4 h-4 animate-spin"/>
             Thinking...
           </div>
 
@@ -163,10 +168,10 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
-import { Sparkles, Globe, Lightbulb, MessageSquare, Send, Loader2, AlertTriangle, Download } from 'lucide-vue-next'
+import {AlertTriangle, Download, Globe, Lightbulb, Loader2, MessageSquare, Send, Sparkles} from 'lucide-vue-next'
 
 // Markdown parsing utility optimized for chat messages
 function parseMarkdown(text) {
@@ -176,10 +181,10 @@ function parseMarkdown(text) {
 
   // Escape HTML to prevent XSS
   html = html.replace(/&/g, '&amp;')
-             .replace(/</g, '&lt;')
-             .replace(/>/g, '&gt;')
-             .replace(/"/g, '&quot;')
-             .replace(/'/g, '&#39;');
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
   // Code blocks first (to avoid processing markdown inside code)
   html = html.replace(/```([\s\S]*?)```/g, '<pre class="code-block"><code>$1</code></pre>');
@@ -309,16 +314,17 @@ export default {
     const currentPrompt = ref('')
     const messages = ref([])
     const suggestions = ref([])
-    const pageInfo = ref({ title: '', url: '' })
+    const pageInfo = ref({title: '', url: ''})
     const pageContent = ref('')
     const isLoading = ref(false)
     const error = ref('')
-    const apiStatus = ref({ available: false, message: '' })
+    const apiStatus = ref({available: false, message: ''})
     const downloadProgress = ref(0)
     const isDownloading = ref(false)
     const isLoadingSuggestions = ref(false)
     const aiGeneratedSuggestions = ref(false)
     const chatContainer = ref(null)
+    const tokensPerSecond = ref(0)
 
     // Connection port for background script communication
     let connectionPort = null
@@ -343,14 +349,14 @@ export default {
 
     const establishConnection = () => {
       try {
-        connectionPort = chrome.runtime.connect({ name: 'popup' })
+        connectionPort = chrome.runtime.connect({name: 'popup'})
 
         // Handle heartbeat messages
         connectionPort.onMessage.addListener((message) => {
           if (message.action === 'heartbeat') {
             // Respond to heartbeat to keep connection alive
             try {
-              connectionPort.postMessage({ action: 'heartbeat_response' });
+              connectionPort.postMessage({action: 'heartbeat_response'});
             } catch (error) {
               console.log('Failed to respond to heartbeat:', error);
             }
@@ -373,7 +379,7 @@ export default {
         isLoadingSuggestions.value = true
 
         const response = await new Promise((resolve, reject) => {
-          chrome.runtime.sendMessage({ action: 'getPageContent' }, (response) => {
+          chrome.runtime.sendMessage({action: 'getPageContent'}, (response) => {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message));
             } else {
@@ -430,6 +436,8 @@ export default {
       currentPrompt.value = ''
       isLoading.value = true
       error.value = ''
+      tokensPerSecond.value = 0 // Reset TPS counter
+      let streamStartTime = 0 // To calculate TPS
 
       // Create assistant message for streaming
       const assistantMessage = {
@@ -446,10 +454,21 @@ export default {
         // Listen for streaming responses
         const messageListener = (message) => {
           if (message.action === 'streamingResponse' && message.sessionId === sessionId) {
+            if (streamStartTime === 0) {
+              streamStartTime = Date.now()
+            }
             // Update the assistant message with streaming content
             const msgIndex = messages.value.findIndex(m => m.id === assistantMessage.id)
             if (msgIndex !== -1) {
               messages.value[msgIndex].content = message.fullResponse
+
+              // Calculate approximate tokens per second
+              const elapsedTime = (Date.now() - streamStartTime) / 1000 // in seconds
+              if (elapsedTime > 0.1) { // To avoid division by zero and for smoother updates
+                // Using word count as a rough approximation for tokens
+                const tokenCount = message.fullResponse.split(/\s+/).length
+                tokensPerSecond.value = tokenCount / elapsedTime
+              }
             }
           }
         }
@@ -503,10 +522,11 @@ export default {
       }
     }
 
+
     const checkAPIStatus = async () => {
       try {
         const response = await new Promise((resolve, reject) => {
-          chrome.runtime.sendMessage({ action: 'checkAPIAvailability' }, (response) => {
+          chrome.runtime.sendMessage({action: 'checkAPIAvailability'}, (response) => {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message));
             } else {
@@ -581,6 +601,7 @@ export default {
       isDownloading,
       isLoadingSuggestions,
       aiGeneratedSuggestions,
+      tokensPerSecond,
       selectSuggestion,
       sendPrompt,
       checkAPIStatus,
