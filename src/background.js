@@ -3,6 +3,11 @@
 const {
     buildSessionOptions
 } = require('./utils/promptApiSession');
+const {
+    buildSuggestionPrompt,
+    getFallbackSuggestions,
+    parseAISuggestions
+} = require('./utils/suggestionUtils');
 
 const MESSAGE_PORT_CLOSED_WITHOUT_RESPONSE = 'The message port closed before a response was received.';
 
@@ -33,6 +38,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Handle page content extraction with proper content script management
         handlePageContentRequest(sendResponse);
         return true; // Keep message channel open for async response
+    }
+
+    if (request.action === 'refreshSuggestions') {
+        handleSuggestionRefresh(request)
+            .then(result => sendResponse(result))
+            .catch(error => sendResponse({
+                suggestions: getFallbackSuggestions(request.excludeSuggestions),
+                aiGenerated: false,
+                error: error.message
+            }));
+        return true;
     }
 
     if (request.action === 'promptAPI') {
@@ -185,15 +201,23 @@ async function ensureContentScript(tabId, url) {
 }
 
 // Helper function to generate AI-powered suggestions based on page content
-async function generateAISuggestions(content, title, url) {
+async function generateAISuggestions(content, title, url, excludedSuggestions = []) {
     try {
         // Create a cache key based on content hash for performance
-        const contentHash = simpleHash(content + title);
+        const excludedKey = [...new Set((excludedSuggestions || [])
+            .map(suggestion => suggestion?.trim().toLowerCase())
+            .filter(Boolean))]
+            .sort()
+            .join('|');
+        const contentHash = simpleHash(content + title + excludedKey);
 
         // Check cache first
         if (suggestionCache.has(contentHash)) {
             console.log('Using cached suggestions for:', title);
-            return suggestionCache.get(contentHash);
+            return {
+                suggestions: suggestionCache.get(contentHash),
+                aiGenerated: true
+            };
         }
 
         if (!("LanguageModel" in self)) {
@@ -204,28 +228,19 @@ async function generateAISuggestions(content, title, url) {
         console.log('Model availability:', availability);
         if (availability !== 'available') {
             console.log('AI model is not available for suggestion generation');
-            return getFallbackSuggestions();
+            return {
+                suggestions: getFallbackSuggestions(excludedSuggestions),
+                aiGenerated: false
+            };
         }
 
         // Create a focused prompt for suggestion generation
-        const suggestionPrompt = `Based on the following webpage content, generate exactly 3 unique, specific, and contextually relevant questions or prompts that would help someone understand or engage with this content better.
-
-Page Title: ${title}
-URL: ${url}
-Content: ${content.substring(0, 1500)}...
-
-Requirements:
-- Generate exactly 3 suggestions
-- Make them specific to this content, not generic
-- Focus on the most important or interesting aspects
-- Keep each suggestion under 60 characters
-- Format as a simple numbered list (1. 2. 3.)
-- No explanations, just the suggestions
-
-Example format:
-1. What are the key findings?
-2. How does this compare to alternatives?
-3. What are the practical implications?`;
+        const suggestionPrompt = buildSuggestionPrompt({
+            content,
+            title,
+            url,
+            excludedSuggestions
+        });
 
         // Create a session for suggestion generation
         const session = await LanguageModel.create({
@@ -237,7 +252,7 @@ Example format:
             const response = await session.prompt(suggestionPrompt);
 
             // Parse the AI response to extract suggestions
-            const suggestions = parseAISuggestions(response);
+            const suggestions = parseAISuggestions(response, excludedSuggestions);
 
             // Validate we have exactly 3 suggestions
             if (suggestions.length === 3) {
@@ -252,17 +267,26 @@ Example format:
                     suggestionCache.delete(firstKey);
                 }
 
-                return suggestions;
+                return {
+                    suggestions,
+                    aiGenerated: true
+                };
             } else {
                 console.warn('AI generated wrong number of suggestions:', suggestions.length);
-                return getFallbackSuggestions();
+                return {
+                    suggestions: getFallbackSuggestions(excludedSuggestions),
+                    aiGenerated: false
+                };
             }
         } finally {
             session.destroy();
         }
     } catch (error) {
         console.error('Error generating AI suggestions:', error);
-        return getFallbackSuggestions();
+        return {
+            suggestions: getFallbackSuggestions(excludedSuggestions),
+            aiGenerated: false
+        };
     }
 }
 
@@ -275,45 +299,6 @@ function simpleHash(str) {
         hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString();
-}
-
-// Helper function to parse AI-generated suggestions
-function parseAISuggestions(response) {
-    try {
-        const lines = response.split('\n').filter(line => line.trim());
-        const suggestions = [];
-
-        for (const line of lines) {
-            // Match numbered list items (1. 2. 3. etc.)
-            const match = line.match(/^\d+\.\s*(.+)$/);
-            if (match && match[1]) {
-                let suggestion = match[1].trim();
-
-                // Remove quotes if present
-                suggestion = suggestion.replace(/^["']|["']$/g, '');
-
-
-                suggestions.push(suggestion);
-
-                // Stop at 3 suggestions
-                if (suggestions.length >= 3) break;
-            }
-        }
-
-        return suggestions;
-    } catch (error) {
-        console.error('Error parsing AI suggestions:', error);
-        return [];
-    }
-}
-
-// Helper function to get fallback suggestions
-function getFallbackSuggestions() {
-    return [
-        "Summarize this page",
-        "What are the main points?",
-        "Explain this in simple terms"
-    ];
 }
 
 // Helper function to get fallback page info when content script is unavailable
@@ -389,7 +374,7 @@ async function handlePageContentRequest(sendResponse) {
                 try {
                     // Generate AI-powered suggestions based on the extracted content
                     console.log('Generating AI suggestions for:', response.title);
-                    const suggestions = await generateAISuggestions(
+                    const suggestionResult = await generateAISuggestions(
                         response.content,
                         response.title,
                         response.url
@@ -398,8 +383,8 @@ async function handlePageContentRequest(sendResponse) {
                     // Add suggestions to the response
                     const enhancedResponse = {
                         ...response,
-                        suggestions: suggestions,
-                        aiGenerated: true
+                        suggestions: suggestionResult.suggestions,
+                        aiGenerated: suggestionResult.aiGenerated
                     };
 
                     sendResponse(enhancedResponse);
@@ -429,6 +414,20 @@ async function handlePageContentRequest(sendResponse) {
             error: 'Failed to process page content request: ' + error.message
         });
     }
+}
+
+async function handleSuggestionRefresh(request) {
+    const suggestionResult = await generateAISuggestions(
+        request.content || '',
+        request.title || '',
+        request.url || '',
+        request.excludeSuggestions || []
+    );
+
+    return {
+        suggestions: suggestionResult.suggestions,
+        aiGenerated: suggestionResult.aiGenerated
+    };
 }
 
 // Helper function to safely send messages with proper error handling

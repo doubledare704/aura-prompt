@@ -319,6 +319,7 @@ export default {
     const currentPrompt = ref('')
     const messages = ref([])
     const suggestions = ref([])
+    const usedSuggestions = ref([])
     const pageInfo = ref({title: '', url: ''})
     const pageContent = ref('')
     const isLoading = ref(false)
@@ -382,6 +383,7 @@ export default {
     const loadPageData = async () => {
       try {
         isLoadingSuggestions.value = true
+        usedSuggestions.value = []
 
         const response = await new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({action: 'getPageContent'}, (response) => {
@@ -422,6 +424,57 @@ export default {
       }
     }
 
+    const refreshSuggestions = async () => {
+      if (isLoadingSuggestions.value) return
+
+      try {
+        isLoadingSuggestions.value = true
+
+        const response = await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({
+            action: 'refreshSuggestions',
+            content: pageContent.value,
+            title: pageInfo.value.title,
+            url: pageInfo.value.url,
+            excludeSuggestions: usedSuggestions.value
+          }, (refreshResponse) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message))
+            } else {
+              resolve(refreshResponse)
+            }
+          })
+        })
+
+        if (response?.suggestions) {
+          suggestions.value = response.suggestions
+          aiGeneratedSuggestions.value = response.aiGenerated || false
+        }
+
+        if (response?.error) {
+          console.warn('Suggestion refresh used fallback response:', response.error)
+        }
+      } catch (err) {
+        console.error('Failed to refresh suggestions:', err)
+      } finally {
+        isLoadingSuggestions.value = false
+      }
+    }
+
+    const consumeSuggestion = (prompt) => {
+      if (!suggestions.value.includes(prompt)) return
+
+      if (!usedSuggestions.value.includes(prompt)) {
+        usedSuggestions.value = [...usedSuggestions.value, prompt]
+      }
+
+      suggestions.value = suggestions.value.filter((suggestion) => suggestion !== prompt)
+
+      if (suggestions.value.length === 0) {
+        refreshSuggestions()
+      }
+    }
+
     const selectSuggestion = (suggestion) => {
       currentPrompt.value = suggestion
       sendPrompt()
@@ -430,16 +483,19 @@ export default {
     const sendPrompt = async () => {
       if (!currentPrompt.value.trim() || isLoading.value) return
 
+      const prompt = currentPrompt.value.trim()
+
+      consumeSuggestion(prompt)
+
       const userMessage = {
         id: Date.now(),
         type: 'user',
-        content: currentPrompt.value
+        content: prompt
       }
 
       messages.value.push(userMessage)
       scrollToBottom() // Scroll after adding user message
 
-      const prompt = currentPrompt.value
       currentPrompt.value = ''
       isLoading.value = true
       error.value = ''
