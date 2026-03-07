@@ -1,5 +1,11 @@
 // Background service worker for Aura Prompt Extension
 
+const {
+    buildSessionOptions
+} = require('./utils/promptApiSession');
+
+const MESSAGE_PORT_CLOSED_WITHOUT_RESPONSE = 'The message port closed before a response was received.';
+
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
     console.log('Aura Prompt Extension installed');
@@ -426,39 +432,78 @@ async function handlePageContentRequest(sendResponse) {
 }
 
 // Helper function to safely send messages with proper error handling
-function safeSendMessage(message, callback = null, timeout = 5000) {
+function safeSendMessage(message, callback = null, timeout = 5000, options = {}) {
+    const expectResponse = options.expectResponse ?? false;
+
     return new Promise((resolve) => {
+        let settled = false;
+
+        const finish = (value) => {
+            if (!settled) {
+                settled = true;
+                resolve(value);
+            }
+        };
+
         try {
             // Check if there are any active connections before sending
             if (activeConnections.size === 0) {
                 console.log('No active connections, skipping message:', message.action);
-                resolve(false);
+                finish(false);
                 return;
             }
 
             // Set up timeout to prevent hanging
             const timeoutId = setTimeout(() => {
                 console.log(`Message timeout (${message.action})`);
-                resolve(false);
+                finish(false);
             }, timeout);
 
             chrome.runtime.sendMessage(message, (response) => {
                 clearTimeout(timeoutId);
 
                 if (chrome.runtime.lastError) {
+                    const errorMessage = chrome.runtime.lastError.message || '';
+                    const isFireAndForgetDelivery = !expectResponse
+                        && errorMessage.includes(MESSAGE_PORT_CLOSED_WITHOUT_RESPONSE);
+
+                    if (isFireAndForgetDelivery) {
+                        if (callback) callback(response);
+                        finish(true);
+                        return;
+                    }
+
                     // Connection error - popup likely closed
-                    console.log(`Message send failed (${message.action}):`, chrome.runtime.lastError.message);
-                    resolve(false);
+                    console.log(`Message send failed (${message.action}):`, errorMessage);
+                    finish(false);
                 } else {
                     if (callback) callback(response);
-                    resolve(true);
+                    finish(true);
                 }
             });
         } catch (error) {
             console.error('Error sending message:', error);
-            resolve(false);
+            finish(false);
         }
     });
+}
+
+async function createSessionWithFallback(params) {
+    const sessionOptions = buildSessionOptions(params);
+    const availability = await LanguageModel.availability(sessionOptions);
+
+    console.log('Model availability:', availability);
+
+    if (availability === 'unavailable') {
+        throw new Error('The AI language model is not available on this device.');
+    }
+
+    if (availability === 'downloadable' || availability === 'downloading') {
+        await handleModelDownload(sessionOptions, availability);
+    }
+
+    console.log(`Creating session with parameters: ${JSON.stringify(sessionOptions)}`);
+    return await LanguageModel.create(sessionOptions);
 }
 
 // Track popup connections
@@ -491,47 +536,24 @@ chrome.runtime.onConnect.addListener((port) => {
 async function handlePromptAPI(prompt, context = '', sessionId = null) {
     let session = null;
 
-
     try {
         // Check if Prompt API is available
         if (!("LanguageModel" in self)) {
-            throw new Error('Chrome Prompt API is not available. Please ensure you have Chrome 127+ and the AI features are enabled.');
-        }
-        // Check model availability
-        const availability = await LanguageModel.availability();
-
-        console.log('Model availability:', availability);
-
-        if (availability === 'unavailable') {
-            throw new Error('The AI language model is not available on this device.');
+            throw new Error('Chrome Prompt API is not available. Please ensure you have Chrome 138+ and the AI features are enabled.');
         }
 
-        // Handle model download if needed
-        if (availability === 'downloadable' || availability === 'downloading') {
-            await handleModelDownload(availability);
-        }
-
-        // Get parameter constraints and validate
         const params = await LanguageModel.params();
-        const validatedParams = validateParameters(params, {
-            temperature: Math.max(params.defaultTemperature * 1.2, 2.0),
-            topK: 3
-        });
-
-        // Create a language model session with validated parameters
-        session = await LanguageModel.create(validatedParams);
+        session = await createSessionWithFallback(params);
 
         // Store session for potential cancellation
         if (sessionId) {
             activeSessions.set(sessionId, session);
         }
 
-        // Prepare the full prompt with context
         const fullPrompt = context
             ? `Context: ${context}\n\nUser Question: ${prompt}`
             : prompt;
 
-        // Use streaming response for real-time feedback
         return await streamResponse(session, fullPrompt, sessionId);
     } catch (error) {
         console.error('Prompt API error:', error);
@@ -554,85 +576,45 @@ async function handlePromptAPI(prompt, context = '', sessionId = null) {
 }
 
 // Helper function to handle model download
-async function handleModelDownload(availability) {
-    if (availability === 'downloadable') {
-        console.log('AI model needs to be downloaded. Starting download...');
+async function handleModelDownload(options, availability) {
+    if (availability !== 'downloadable' && availability !== 'downloading') {
+        return;
+    }
 
-        // Create a download session to monitor progress
-        try {
-            const session = await LanguageModel.create({
-                monitor(m) {
-                    m.addEventListener("downloadprogress", async (e) => {
-                        const progress = Math.round((e.loaded / e.total) * 100);
-                        console.log(`Downloaded ${e.loaded * 100}%`);
-                        await safeSendMessage({
-                            action: 'downloadProgress',
-                            progress: progress
-                        });
+    console.log('AI model needs to be downloaded or is still downloading. Waiting for readiness...');
+
+    try {
+        const session = await LanguageModel.create({
+            ...options,
+            monitor(m) {
+                m.addEventListener('downloadprogress', async (e) => {
+                    const progress = Math.max(0, Math.min(100, Math.round((e.loaded ?? 0) * 100)));
+                    console.log(`Downloaded ${progress}%`);
+                    await safeSendMessage({
+                        action: 'downloadProgress',
+                        progress
                     });
-                },
-            });
+                });
+            }
+        });
 
-            // Wait for download to complete
-            await new Promise((resolve, reject) => {
-                session.addEventListener('downloadcomplete', resolve);
-                session.addEventListener('downloaderror', reject);
+        await safeSendMessage({
+            action: 'downloadProgress',
+            progress: 100
+        });
 
-                // Timeout after 5 minutes
-                setTimeout(() => reject(new Error('Download timeout')), 5 * 60 * 1000);
-            });
-
-            session.destroy();
-            console.log('Model download completed');
-        } catch (error) {
-            throw new Error(`Failed to download AI model: ${error.message}`);
-        }
-    } else if (availability === 'downloading') {
-        console.log('AI model is currently downloading. Please wait...');
-        throw new Error('AI model is currently downloading. Please try again in a few moments.');
+        session.destroy();
+        console.log('Model download completed');
+    } catch (error) {
+        throw new Error(`Failed to download AI model: ${error.message}`);
     }
-}
-
-// Helper function to validate parameters against API constraints
-function validateParameters(apiParams, requestedParams) {
-    const validated = {};
-
-    // Validate temperature (API typically allows 0.0-2.0)
-    if (requestedParams.temperature !== undefined) {
-        const temp = requestedParams.temperature;
-        const minTemp = apiParams.temperature?.min ?? 0.0;
-        const maxTemp = apiParams.temperature?.max ?? 2.0;
-
-        if (temp < minTemp || temp > maxTemp) {
-            console.warn(`Temperature ${temp} out of range [${minTemp}, ${maxTemp}]. Using ${Math.max(minTemp, Math.min(maxTemp, temp))}`);
-            validated.temperature = Math.max(minTemp, Math.min(maxTemp, temp));
-        } else {
-            validated.temperature = temp;
-        }
-    }
-
-    // Validate topK (API typically allows 1-8)
-    if (requestedParams.topK !== undefined) {
-        const topK = requestedParams.topK;
-        const minTopK = apiParams.topK?.min ?? 1;
-        const maxTopK = apiParams.topK?.max ?? 8;
-
-        if (topK < minTopK || topK > maxTopK) {
-            console.warn(`TopK ${topK} out of range [${minTopK}, ${maxTopK}]. Using ${Math.max(minTopK, Math.min(maxTopK, topK))}`);
-            validated.topK = Math.max(minTopK, Math.min(maxTopK, topK));
-        } else {
-            validated.topK = topK;
-        }
-    }
-
-    return validated;
 }
 
 // Helper function to handle streaming responses
 async function streamResponse(session, prompt, sessionId) {
     try {
         let fullResponse = '';
-        let streamingActive = true;
+        let shouldSendStreamingUpdates = true;
         console.log(`${session.inputUsage}/${session.inputQuota}`);
         // Use streaming API for real-time responses
         const stream = session.promptStreaming(prompt);
@@ -641,12 +623,11 @@ async function streamResponse(session, prompt, sessionId) {
             // Check if session was canceled
             if (sessionId && !activeSessions.has(sessionId)) {
                 console.log('Session cancelled, stopping stream');
-                streamingActive = false;
                 break;
             }
 
             // Check if popup is still connected before sending streaming updates
-            if (activeConnections.size === 0) {
+            if (!shouldSendStreamingUpdates || activeConnections.size === 0) {
                 console.log('No active popup connections, continuing stream silently');
                 fullResponse += chunk;
                 continue;
@@ -665,6 +646,7 @@ async function streamResponse(session, prompt, sessionId) {
             // If message sending fails consistently, popup is likely closed
             // Continue processing but stop sending updates
             if (!messageSent) {
+                shouldSendStreamingUpdates = false;
                 console.log('Popup disconnected during streaming, continuing silently');
             }
         }
@@ -786,3 +768,5 @@ chrome.action.onClicked.addListener((tab) => {
     // This will open the popup automatically due to default_popup in manifest
     console.log('Extension icon clicked');
 });
+
+

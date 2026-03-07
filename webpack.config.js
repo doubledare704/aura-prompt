@@ -65,6 +65,11 @@ module.exports = (env, argv) => {
       }
     },
     devtool: isProduction ? false : 'cheap-module-source-map',
+    performance: {
+      hints: isProduction ? 'warning' : false,
+      maxAssetSize: 300000,
+      maxEntrypointSize: 300000
+    },
     optimization: {
       minimize: isProduction
     }

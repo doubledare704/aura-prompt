@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full bg-background">
+  <div class="w-full min-h-[500px] bg-background flex flex-col">
     <!-- Header -->
     <div class="border-b border-border p-4">
       <div class="flex items-center gap-2">
@@ -43,126 +43,131 @@
         </div>
       </div>
 
-      <!-- Page Info -->
-      <div v-if="pageInfo.title" class="bg-muted/50 rounded-lg p-3">
-        <div class="flex items-start gap-2">
-          <Globe class="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0"/>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium truncate">{{ pageInfo.title }}</p>
-            <p class="text-xs text-muted-foreground truncate">{{ pageInfo.url }}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Smart Suggestions -->
-      <div v-if="suggestions.length > 0 || isLoadingSuggestions">
-        <h3 class="text-sm font-medium mb-2 flex items-center gap-2">
-          <Lightbulb class="w-4 h-4"/>
-          Smart Suggestions
-          <span v-if="aiGeneratedSuggestions" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-            AI
-          </span>
-        </h3>
-
-        <!-- Loading state for suggestions -->
-        <div v-if="isLoadingSuggestions" class="flex items-center gap-2 text-sm text-muted-foreground py-2">
-          <Loader2 class="w-4 h-4 animate-spin"/>
-          Generating smart suggestions...
-        </div>
-
-        <!-- Generated suggestions -->
-        <div v-else class="grid grid-cols-1 gap-2">
-          <Button
-              v-for="suggestion in suggestions"
-              :key="suggestion"
-              variant="outline"
-              size="sm"
-              class="justify-start text-left h-auto py-2 px-3"
-              @click="selectSuggestion(suggestion)"
-          >
-            {{ suggestion }}
-          </Button>
-        </div>
-      </div>
-
-      <!-- Chat Interface -->
-      <div class="space-y-3">
-        <h3 class="text-sm font-medium flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <MessageSquare class="w-4 h-4"/>
-            Ask Anything
-          </div>
-          <span v-if="isLoading && tokensPerSecond > 0" class="text-xs text-muted-foreground font-normal">
-            {{ tokensPerSecond.toFixed(1) }} tokens/s
-          </span>
-        </h3>
-
-
-        <!-- Chat Messages -->
-        <div ref="chatContainer" v-if="messages.length > 0" class="space-y-3 max-h-60 overflow-y-auto">
-          <div
-              v-for="message in messages"
-              :key="message.id"
-              class="flex gap-3"
-              :class="message.type === 'user' ? 'justify-end' : 'justify-start'"
-          >
-            <div
-                class="max-w-[95%] rounded-lg px-3 py-2 text-sm"
-                :class="message.type === 'user'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground'"
-            >
-              <!-- User messages (plain text) -->
-              <div v-if="message.type === 'user'" class="whitespace-pre-wrap">
-                {{ message.content }}
-              </div>
-
-              <!-- AI messages (parsed markdown) -->
-              <div
-                  v-else
-                  class="markdown-content"
-                  v-html="parseMarkdown(message.content)"
-              ></div>
-
-              <div v-if="message.streaming" class="flex items-center gap-1 mt-2">
-                <Loader2 class="w-3 h-3 animate-spin"/>
-                <span class="text-xs opacity-70">AI is typing...</span>
-              </div>
+      <!-- Chat Content -->
+      <div class="space-y-4">
+        <!-- Page Info -->
+        <div v-if="pageInfo.title" class="bg-muted/50 rounded-lg p-3">
+          <div class="flex items-start gap-2">
+            <Globe class="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0"/>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium truncate">{{ pageInfo.title }}</p>
+              <p class="text-xs text-muted-foreground truncate">{{ pageInfo.url }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Input Area -->
-        <div class="space-y-2">
-          <div class="flex gap-2">
-            <Input
-                v-model="currentPrompt"
-                :placeholder="apiStatus.available ? 'Ask about this page or anything else...' : 'AI not available'"
-                class="flex-1"
-                @keyup.enter="sendPrompt"
-                :disabled="isLoading || !apiStatus.available || isDownloading"
-            />
-            <Button
-                @click="sendPrompt"
-                :disabled="!currentPrompt.trim() || isLoading || !apiStatus.available || isDownloading"
-                size="sm"
+        <!-- Chat Interface -->
+        <div class="flex flex-col gap-3 min-h-[320px]">
+          <h3 class="text-sm font-medium flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <MessageSquare class="w-4 h-4"/>
+              Ask Anything
+            </div>
+            <span v-if="isLoading && tokensPerSecond > 0" class="text-xs text-muted-foreground font-normal">
+              {{ tokensPerSecond.toFixed(1) }} tokens/s
+            </span>
+          </h3>
+
+
+          <!-- Chat Messages -->
+          <div ref="chatContainer" v-if="messages.length > 0" class="flex-1 min-h-[140px] max-h-[280px] space-y-3 overflow-y-auto pr-1">
+            <div
+                v-for="message in messages"
+                :key="message.id"
+                class="flex gap-3"
+                :class="message.type === 'user' ? 'justify-end' : 'justify-start'"
             >
-              <Send class="w-4 h-4"/>
-            </Button>
-          </div>
+              <div
+                  class="max-w-[95%] rounded-lg px-3 py-2 text-sm"
+                  :class="message.type === 'user'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'"
+              >
+                <!-- User messages (plain text) -->
+                <div v-if="message.type === 'user'" class="whitespace-pre-wrap">
+                  {{ message.content }}
+                </div>
 
-          <!-- Loading indicator -->
-          <div v-if="isLoading" class="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 class="w-4 h-4 animate-spin"/>
-            Thinking...
-          </div>
+                <!-- AI messages (parsed markdown) -->
+                <div
+                    v-else
+                    class="markdown-content"
+                    v-html="parseMarkdown(message.content)"
+                ></div>
 
-          <!-- Error message -->
-          <div v-if="error" class="text-sm text-destructive bg-destructive/10 rounded-lg p-2">
-            {{ error }}
+                <div v-if="message.streaming" class="flex items-center gap-1 mt-2">
+                  <Loader2 class="w-3 h-3 animate-spin"/>
+                  <span class="text-xs opacity-70">AI is typing...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="flex-1 min-h-[140px]"></div>
+
+          <!-- Input Area -->
+          <div class="space-y-3 border-t border-border/60 pt-3">
+            <!-- Smart Suggestions -->
+            <div v-if="suggestions.length > 0 || isLoadingSuggestions" class="space-y-2">
+              <h3 class="text-sm font-medium flex items-center gap-2">
+                <Lightbulb class="w-4 h-4"/>
+                Smart Suggestions
+                <span v-if="aiGeneratedSuggestions" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                  AI
+                </span>
+              </h3>
+
+              <!-- Loading state for suggestions -->
+              <div v-if="isLoadingSuggestions" class="flex items-center gap-2 text-sm text-muted-foreground py-1">
+                <Loader2 class="w-4 h-4 animate-spin"/>
+                Generating smart suggestions...
+              </div>
+
+              <!-- Generated suggestions -->
+              <div v-else class="flex flex-wrap gap-2">
+                <Button
+                    v-for="suggestion in suggestions"
+                    :key="suggestion"
+                    variant="outline"
+                    size="sm"
+                    class="h-auto max-w-full whitespace-normal rounded-full px-3 py-1.5 text-left"
+                    @click="selectSuggestion(suggestion)"
+                >
+                  {{ suggestion }}
+                </Button>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <Input
+                  v-model="currentPrompt"
+                  :placeholder="apiStatus.available ? 'Ask about this page or anything else...' : 'AI not available'"
+                  class="flex-1"
+                  @keyup.enter="sendPrompt"
+                  :disabled="isLoading || !apiStatus.available || isDownloading"
+              />
+              <Button
+                  @click="sendPrompt"
+                  :disabled="!currentPrompt.trim() || isLoading || !apiStatus.available || isDownloading"
+                  size="sm"
+              >
+                <Send class="w-4 h-4"/>
+              </Button>
+            </div>
+
+            <!-- Loading indicator -->
+            <div v-if="isLoading" class="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 class="w-4 h-4 animate-spin"/>
+              Thinking...
+            </div>
+
+            <!-- Error message -->
+            <div v-if="error" class="text-sm text-destructive bg-destructive/10 rounded-lg p-2">
+              {{ error }}
+            </div>
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -432,6 +437,8 @@ export default {
       }
 
       messages.value.push(userMessage)
+      scrollToBottom() // Scroll after adding user message
+
       const prompt = currentPrompt.value
       currentPrompt.value = ''
       isLoading.value = true
@@ -447,6 +454,7 @@ export default {
         streaming: true
       }
       messages.value.push(assistantMessage)
+      scrollToBottom() // Scroll after adding assistant message
 
       try {
         const sessionId = `session_${Date.now()}_${Math.random()}`
@@ -469,6 +477,9 @@ export default {
                 const tokenCount = message.fullResponse.split(/\s+/).length
                 tokensPerSecond.value = tokenCount / elapsedTime
               }
+
+              // Auto-scroll during streaming
+              scrollToBottom()
             }
           }
         }
@@ -500,6 +511,8 @@ export default {
             messages.value[msgIndex].content = response.response
             messages.value[msgIndex].streaming = false
           }
+          // Final scroll after completion
+          scrollToBottom()
         } else {
           // Remove the assistant message on error
           const msgIndex = messages.value.findIndex(m => m.id === assistantMessage.id)
@@ -551,17 +564,13 @@ export default {
     }
 
     const scrollToBottom = () => {
-      // nextTick ensures this code runs after the DOM has been updated
       nextTick(() => {
-        const container = chatContainer.value;
-        console.log()
+        const container = chatContainer.value
         if (container) {
-          // Set the scroll position to the maximum scroll height
-          console.log(container.scrollHeight)
-          container.scrollTop = container.scrollHeight;
+          container.scrollTop = container.scrollHeight
         }
-      });
-    };
+      })
+    }
 
     const setupMessageListeners = () => {
       // Listen for download progress updates
@@ -582,7 +591,10 @@ export default {
     }
 
     watch(messages, () => {
-      scrollToBottom();
+      // Use a small delay to ensure DOM updates are complete
+      setTimeout(() => {
+        scrollToBottom();
+      }, 50);
     }, {
       // deep: true is crucial. It watches for changes inside the message
       // objects, like when the 'content' property is updated during streaming.
@@ -594,6 +606,7 @@ export default {
       messages,
       suggestions,
       pageInfo,
+      pageContent,
       isLoading,
       error,
       apiStatus,
@@ -601,6 +614,7 @@ export default {
       isDownloading,
       isLoadingSuggestions,
       aiGeneratedSuggestions,
+      chatContainer,
       tokensPerSecond,
       selectSuggestion,
       sendPrompt,

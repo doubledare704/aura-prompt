@@ -64,6 +64,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true; // Keep message channel open for async response
   }
+
 });
 
 // Function to extract meaningful content from the page
