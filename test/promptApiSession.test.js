@@ -43,6 +43,15 @@ test('buildSessionOptions falls back to Prompt API-friendly defaults', () => {
     });
 });
 
+test('buildSessionOptions handles null params while the model is downloading', () => {
+    const options = buildSessionOptions(null);
+
+    assert.deepEqual(options, {
+        temperature: 0.7,
+        topK: 3
+    });
+});
+
 test('buildSessionOptions uses nested API defaults when top-level defaults are absent', () => {
     const options = buildSessionOptions({
         temperature: {min: 0.2, max: 1.2, default: 0.5},

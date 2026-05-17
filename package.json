@@ -13,34 +13,21 @@
   "author": "",
   "scripts": {
     "test": "node --test",
-    "dev": "webpack --mode=development --watch",
-    "build": "webpack --mode=production",
-    "build:dev": "webpack --mode=development"
+    "dev": "extension dev --browser=chrome",
+    "build": "extension build --browser=chrome"
   },
   "dependencies": {
-    "vue": "^3.4.0",
-    "lucide-vue-next": "^0.344.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "tailwind-merge": "^2.2.0"
+    "lucide-vue-next": "^0.344.0",
+    "tailwind-merge": "^2.2.0",
+    "vue": "^3.5.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.0",
-    "@babel/preset-env": "^7.23.0",
-    "@vue/compiler-sfc": "^3.4.0",
+    "@tailwindcss/postcss": "^4.3.0",
     "autoprefixer": "^10.4.17",
-    "babel-loader": "^9.1.0",
-    "copy-webpack-plugin": "^11.0.0",
-    "css-loader": "^6.10.0",
-    "html-webpack-plugin": "^5.6.0",
+    "extension": "latest",
     "postcss": "^8.4.35",
-    "postcss-loader": "^8.1.0",
-    "style-loader": "^3.3.4",
-    "tailwindcss": "^3.4.1",
-    "vue-loader": "^17.4.0",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.4",
-    "webpack-merge": "^5.10.0"
+    "tailwindcss": "latest"
   }
 }
