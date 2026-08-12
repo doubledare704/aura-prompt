@@ -14,7 +14,6 @@
   "scripts": {
     "test": "node --test",
     "dev": "extension dev --browser=chrome",
-    "zip": "node scripts/zip-dist.js",
     "build": "extension build --browser=chrome"
   },
   "dependencies": {
@@ -26,7 +25,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
-    "archiver": "^8.0.0",
     "autoprefixer": "^10.4.17",
     "extension": "^3.16.1",
     "postcss": "^8.4.35",
